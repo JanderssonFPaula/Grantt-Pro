@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Projetos</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/gantt.css">
+    <link rel="stylesheet" href="css/simple-gantt.css">
+    <link rel="stylesheet" href="css/weekly.css">
+    <link rel="stylesheet" href="css/analytics.css">
+    <link rel="stylesheet" href="lib/frappe-gantt.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="logo">
+                    <i class="fas fa-project-diagram"></i>
+                    Gerenciador de Projetos
+                </h1>
+                <div class="header-actions">
+                    <button class="btn btn-secondary" id="importBtn">
+                        <i class="fas fa-file-import"></i>
+                        Importar Excel
+                    </button>
+                    <button class="btn btn-primary" id="exportBtn">
+                        <i class="fas fa-file-export"></i>
+                        Exportar Excel
+                    </button>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav">
+            <ul class="nav-tabs">
+                <li class="nav-item">
+                    <button class="nav-link active" data-tab="projects">
+                        <i class="fas fa-tasks"></i>
+                        Projetos
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="weekly">
+                        <i class="fas fa-calendar-week"></i>
+                        Distribuição Semanal
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" data-tab="analytics">
+                        <i class="fas fa-chart-bar"></i>
+                        Analítico
+                    </button>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Projects Tab -->
+            <div class="tab-content active" id="projects-tab">
+                <div class="tab-header">
+                    <h2>Gerenciamento de Projetos</h2>
+                    <button class="btn btn-primary" id="newProjectBtn">
+                        <i class="fas fa-plus"></i>
+                        Novo Projeto
+                    </button>
+                </div>
+                
+                <div class="projects-container">
+                    <div class="projects-list">
+                        <h3>Lista de Projetos</h3>
+                        <div class="projects-grid" id="projectsGrid"></div>
+                    </div>
+                    
+                    <div class="gantt-container">
+                        <div class="gantt-header">
+                            <h3>Gráfico de Gantt</h3>
+                            <div class="gantt-filters">
+                                <select id="projectFilter" class="filter-select">
+                                    <option value="">Todos os Projetos</option>
+                                </select>
+                                <select id="responsibleFilter" class="filter-select">
+                                    <option value="">Todos os Responsáveis</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div id="ganttChart" class="gantt-chart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Weekly Distribution Tab -->
+            <div class="tab-content" id="weekly-tab">
+                <div class="tab-header">
+                    <h2>Distribuição Semanal</h2>
+                    <p>Arraste as etapas para alocar nos dias da semana</p>
+                </div>
+                <div class="weekly-container">
+                    <div class="weekly-sidebar">
+                        <h3>Etapas Disponíveis</h3>
+                        <div class="available-tasks" id="availableTasks"></div>
+                    </div>
+                    <div class="weekly-calendar">
+                        <div class="week-header">
+                            <div class="day-header">Segunda</div>
+                            <div class="day-header">Terça</div>
+                            <div class="day-header">Quarta</div>
+                            <div class="day-header">Quinta</div>
+                            <div class="day-header">Sexta</div>
+                            <div class="day-header">Sábado</div>
+                            <div class="day-header">Domingo</div>
+                        </div>
+                        <div class="week-grid" id="weekGrid"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div class="tab-content" id="analytics-tab">
+                <div class="tab-header">
+                    <h2>Relatório Analítico</h2>
+                </div>
+                <div class="analytics-container">
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-project-diagram"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="totalProjects">0</h3>
+                                <p>Total de Projetos</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="completedTasks">0</h3>
+                                <p>Etapas Concluídas</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="inProgressTasks">0</h3>
+                                <p>Em Andamento</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <h3 id="overdueTasks">0</h3>
+                                <p>Atrasadas</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="charts-container">
+                        <div class="chart-card">
+                            <h3>Status das Etapas</h3>
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                        <div class="chart-card">
+                            <h3>Projetos por Responsável</h3>
+                            <canvas id="responsibleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Project Modal -->
+    <div class="modal" id="projectModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Projeto</h2>
+                <button class="modal-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="projectForm">
+                <div class="form-group">
+                    <label for="projectName">Nome do Projeto</label>
+                    <input type="text" id="projectName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="startDate">Data de Início</label>
+                        <input type="date" id="startDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="endDate">Data de Término</label>
+                        <input type="date" id="endDate" required>
+                    </div>
+                </div>
+                
+                <div class="tasks-section">
+                    <div class="section-header">
+                        <h3>Etapas do Projeto</h3>
+                        <button type="button" class="btn btn-secondary" id="addTaskBtn">
+                            <i class="fas fa-plus"></i>
+                            Adicionar Etapa
+                        </button>
+                    </div>
+                    <div id="tasksList"></div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Projeto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Libraries -->
+    <script src="lib/xlsx.full.min.js"></script>
+    <script src="lib/frappe-gantt.min.js"></script>
+    <script src="lib/chart.min.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/projects.js"></script>
+    <script src="js/gantt-simple.js"></script>
+    <script src="js/weekly.js"></script>
+    <script src="js/analytics.js"></script>
+    <script src="js/excel.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
