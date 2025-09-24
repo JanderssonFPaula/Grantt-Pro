@@ -1,243 +1,626 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerenciador de Projetos</title>
-    <link rel="stylesheet" href="css/style.css">
-    <link rel="stylesheet" href="css/modal.css">
-    <link rel="stylesheet" href="css/gantt.css">
-    <link rel="stylesheet" href="css/simple-gantt.css">
-    <link rel="stylesheet" href="css/weekly.css">
-    <link rel="stylesheet" href="css/analytics.css">
-    <link rel="stylesheet" href="lib/frappe-gantt.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gerenciador de Projetos</title>
+  <!-- Ícones -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- SheetJS para importar/exportar Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js para Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- dayjs para datas -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isoWeek.min.js"></script>
+  <script>dayjs.extend(window.dayjs_plugin_isoWeek)</script>
+  <style>
+    :root{--brand:#6d28d9; --brand-contrast:#ffffff;
+      --bg:#0b0c0f; --panel:#14161b; --muted:#2a2f3a; --text:#e8eef9; --sub:#a4afc2; --accent:#6ee7b7; --grid:#1b1f27; --shadow:0 10px 24px rgba(0,0,0,.35);
+      --q1:#e11d48; --q2:#f97316; --q3:#16a34a; --q4:#6b7280; --backlog:#1d4ed8; --ok:#8ae234; --info:#7cc0ff;}
+    .light{--bg:#f6f7fb; --panel:#ffffff; --muted:#eaedf3; --text:#101623; --sub:#445065; --accent:#0ea5e9; --grid:#eef2f7; --shadow:0 8px 18px rgba(16,22,35,.08);
+      --q1:#e11d48; --q2:#f97316; --q3:#16a34a; --q4:#6b7280; --backlog:#1d4ed8}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--text)}
+    .container{max-width:1200px; margin:24px auto; padding:0 16px}
+
+    /* Topbar */
+    .topbar{display:flex; gap:12px; align-items:center; justify-content:space-between; background:var(--brand); border:1px solid rgba(255,255,255,.1); padding:12px; border-radius:16px; color:var(--brand-contrast)}
+    .topbar .title{color:var(--brand-contrast)}
+    .actions{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    /* Botões */
+    .btn{background:var(--panel); border:1px solid var(--muted); color:var(--text); padding:10px 14px; border-radius:14px; cursor:pointer; box-shadow:var(--shadow); transition:.2s}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.accent{background:var(--accent); color:#071014; border:none}
+    .btn.ghost{background:transparent; border:1px dashed var(--muted); color:#fff}
+
+    /* Tabs e painéis */
+    .tabs{display:flex; gap:8px; margin:18px 0}
+    .tab{padding:10px 14px; border-radius:12px; background:var(--panel); border:1px solid var(--muted); cursor:pointer}
+    .tab.active{outline:2px solid var(--accent)}
+    .panel{background:var(--panel); border:1px solid var(--muted); border-radius:18px; padding:16px; box-shadow:var(--shadow)}
+
+    /* Grid e formulário */
+    .grid{display:grid; gap:16px}
+    .grid.cols-2{grid-template-columns:1fr 1fr}
+    .grid.cols-3{grid-template-columns:repeat(3,1fr)}
+    @media(max-width:900px){.grid.cols-2,.grid.cols-3{grid-template-columns:1fr}}
+    .field{display:flex; flex-direction:column; gap:6px}
+    label{font-size:12px; color:var(--sub)}
+    input,select,textarea{background:var(--bg); color:var(--text); border:1px solid var(--muted); border-radius:12px; padding:10px 12px}
+    textarea{min-height:80px}
+
+    /* Tabela */
+    table{width:100%; border-collapse:collapse; overflow:hidden; border-radius:12px}
+    th,td{padding:10px 12px; border-bottom:1px solid var(--muted); text-align:left}
+    tr:hover{background:var(--grid)}
+    .badge{padding:6px 10px; border-radius:999px; font-size:12px; border:1px solid var(--muted); background:var(--bg)}
+
+    /* Gantt */
+    .gantt{border:1px solid var(--muted); border-radius:16px; overflow:auto}
+    .gantt-header,.gantt-row{display:grid; grid-template-columns:200px 1fr}
+    .gantt-header{background:var(--grid); position:sticky; top:0; z-index:2}
+    .gantt-timeline{position:relative; --cell:36px; min-height:40px}
+    .gantt-grid{display:grid; grid-auto-flow:column; grid-auto-columns:var(--cell); height:100%}
+    .gantt-grid div{border-left:1px dashed var(--muted)}
+    .gantt-labels{position:absolute; top:2px; left:0; right:0; display:grid; grid-auto-flow:column; grid-auto-columns:var(--cell); pointer-events:none}
+    .gantt-labels div{font-size:10px; color:var(--sub); text-align:center}
+    .bar{position:absolute; height:26px; border-radius:14px; background:var(--accent); display:flex; align-items:center; justify-content:center; padding:0 10px; color:#071014; font-size:12px; box-shadow:var(--shadow); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:24px}
+    .bar-label{position:absolute; top:-26px; left:0; background:var(--panel); border:1px solid var(--muted); border-radius:10px; padding:2px 8px; font-size:12px; color:var(--text); white-space:nowrap; box-shadow:var(--shadow)}
+
+    /* Planejamento */
+    .matrix{display:flex; flex-direction:column; gap:16px}
+    .lane{border:1px solid var(--muted); border-radius:16px; padding:12px; background:var(--panel); box-shadow:var(--shadow)}
+    .lane-title{font-weight:600; color:#fff; padding:8px 12px; border-radius:10px; margin-bottom:8px; width:100%}
+    .lane-title.backlog{background:var(--backlog)}
+    .lane-title.q1{background:var(--q1)}
+    .lane-title.q2{background:var(--q2)}
+    .lane-title.q3{background:var(--q3)}
+    .lane-title.q4{background:var(--q4)}
+    .week{display:grid; grid-template-columns:repeat(7,1fr); gap:12px}
+    .daybox{background:var(--bg); border:1px solid var(--muted); border-radius:14px; padding:8px; min-height:120px; box-shadow:var(--shadow)}
+    .day-head{font-size:12px; font-weight:600; color:#fff; padding:6px 10px; border-radius:8px; margin-bottom:6px; display:inline-block}
+    .daybox[data-color="q1"] .day-head{background:var(--q1)}
+    .daybox[data-color="q2"] .day-head{background:var(--q2)}
+    .daybox[data-color="q3"] .day-head{background:var(--q3)}
+    .daybox[data-color="q4"] .day-head{background:var(--q4)}
+    #backlog{min-height:640px; border:1px solid var(--muted); border-radius:16px; padding:8px; background:var(--panel)}
+    .task{background:var(--bg); border:1px solid var(--muted); padding:8px 10px; border-radius:12px; margin:6px 0; cursor:grab; box-shadow:var(--shadow); position:relative}
+    .task.dragging{opacity:.6}
+    .task .unplan{position:absolute; top:6px; right:6px; background:var(--brand); color:#fff; border:none; border-radius:999px; padding:4px 10px; font-size:12px; cursor:pointer; box-shadow:var(--shadow)}
+
+    /* Modal */
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; backdrop-filter:blur(2px)}
+    .modal.open{display:flex}
+    .dialog{background:var(--panel); border:1px solid var(--muted); border-radius:18px; width:min(720px, 92vw); max-height:90vh; overflow:auto; padding:16px; box-shadow:var(--shadow)}
+    .dialog .header{display:flex; align-items:center; gap:8px; margin-bottom:8px}
+    .close{margin-left:auto}
+    @media(max-width:700px){ .dialog{width:96vw; padding:12px} .dialog .grid.cols-2,.dialog .grid.cols-3{grid-template-columns:1fr} #stagesTable{display:block; overflow:auto} #stagesTable input,#stagesTable select{min-width:220px} }
+
+    .footer{max-width:1200px; margin:24px auto; padding:8px 16px; color:var(--sub); font-size:12px; text-align:center}
+    /* Analytics layout */
+    .card{background:var(--panel); border:1px solid var(--muted); border-radius:16px; padding:16px; box-shadow:var(--shadow)}
+    .kpis{display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:16px}
+    .stat-title{font-size:12px; color:var(--sub)}
+    .stat-value{font-size:28px; font-weight:700; margin-top:4px}
+    .card canvas{width:100% !important; height:320px !important; display:block}
+    @media(max-width:900px){ .kpis{grid-template-columns:1fr} }
+  </style>
 </head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <h1 class="logo">
-                    <i class="fas fa-project-diagram"></i>
-                    Gerenciador de Projetos
-                </h1>
-                <div class="header-actions">
-                    <button class="btn btn-secondary" id="importBtn">
-                        <i class="fas fa-file-import"></i>
-                        Importar Excel
-                    </button>
-                    <button class="btn btn-primary" id="exportBtn">
-                        <i class="fas fa-file-export"></i>
-                        Exportar Excel
-                    </button>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls" style="display: none;">
-                </div>
-            </div>
-        </header>
-
-        <!-- Navigation -->
-        <nav class="nav">
-            <ul class="nav-tabs">
-                <li class="nav-item">
-                    <button class="nav-link active" data-tab="projects">
-                        <i class="fas fa-tasks"></i>
-                        Projetos
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" data-tab="weekly">
-                        <i class="fas fa-calendar-week"></i>
-                        Distribuição Semanal
-                    </button>
-                </li>
-                <li class="nav-item">
-                    <button class="nav-link" data-tab="analytics">
-                        <i class="fas fa-chart-bar"></i>
-                        Analítico
-                    </button>
-                </li>
-            </ul>
-        </nav>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Projects Tab -->
-            <div class="tab-content active" id="projects-tab">
-                <div class="tab-header">
-                    <h2>Gerenciamento de Projetos</h2>
-                    <button class="btn btn-primary" id="newProjectBtn">
-                        <i class="fas fa-plus"></i>
-                        Novo Projeto
-                    </button>
-                </div>
-                
-                <div class="projects-container">
-                    <div class="projects-list">
-                        <h3>Lista de Projetos</h3>
-                        <div class="projects-grid" id="projectsGrid"></div>
-                    </div>
-                    
-                    <div class="gantt-container">
-                        <div class="gantt-header">
-                            <h3>Gráfico de Gantt</h3>
-                            <div class="gantt-filters">
-                                <select id="projectFilter" class="filter-select">
-                                    <option value="">Todos os Projetos</option>
-                                </select>
-                                <select id="responsibleFilter" class="filter-select">
-                                    <option value="">Todos os Responsáveis</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div id="ganttChart" class="gantt-chart"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Weekly Distribution Tab -->
-            <div class="tab-content" id="weekly-tab">
-                <div class="tab-header">
-                    <h2>Distribuição Semanal</h2>
-                    <p>Arraste as etapas para alocar nos dias da semana</p>
-                </div>
-                <div class="weekly-container">
-                    <div class="weekly-sidebar">
-                        <h3>Etapas Disponíveis</h3>
-                        <div class="available-tasks" id="availableTasks"></div>
-                    </div>
-                    <div class="weekly-calendar">
-                        <div class="week-header">
-                            <div class="day-header">Segunda</div>
-                            <div class="day-header">Terça</div>
-                            <div class="day-header">Quarta</div>
-                            <div class="day-header">Quinta</div>
-                            <div class="day-header">Sexta</div>
-                            <div class="day-header">Sábado</div>
-                            <div class="day-header">Domingo</div>
-                        </div>
-                        <div class="week-grid" id="weekGrid"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Analytics Tab -->
-            <div class="tab-content" id="analytics-tab">
-                <div class="tab-header">
-                    <h2>Relatório Analítico</h2>
-                </div>
-                <div class="analytics-container">
-                    <div class="stats-cards">
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-project-diagram"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="totalProjects">0</h3>
-                                <p>Total de Projetos</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-check-circle"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="completedTasks">0</h3>
-                                <p>Etapas Concluídas</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="inProgressTasks">0</h3>
-                                <p>Em Andamento</p>
-                            </div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-icon">
-                                <i class="fas fa-exclamation-triangle"></i>
-                            </div>
-                            <div class="stat-content">
-                                <h3 id="overdueTasks">0</h3>
-                                <p>Atrasadas</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="charts-container">
-                        <div class="chart-card">
-                            <h3>Status das Etapas</h3>
-                            <canvas id="statusChart"></canvas>
-                        </div>
-                        <div class="chart-card">
-                            <h3>Projetos por Responsável</h3>
-                            <canvas id="responsibleChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+<body class="light" id="body">
+  <div class="container">
+    <div class="topbar">
+      <div class="title">📊 Gerenciador de Projetos</div>
+      <div class="actions">
+        <a class="btn" href="https://github.com/ConsultyD" target="_blank" rel="noopener">🐙 GitHub</a>
+        <button class="btn" id="themeBtn">🌙 Escuro</button>
+        <label class="btn ghost" for="excelInput">📥 Importar Excel</label>
+        <input type="file" id="excelInput" accept=".xlsx,.xls" hidden />
+        <button class="btn" id="exportBtn">📤 Exportar Excel</button>
+        <button class="btn accent" id="newProjectBtn">+ Novo Projeto</button>
+      </div>
     </div>
 
-    <!-- Project Modal -->
-    <div class="modal" id="projectModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Novo Projeto</h2>
-                <button class="modal-close" id="closeModal">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <form id="projectForm">
-                <div class="form-group">
-                    <label for="projectName">Nome do Projeto</label>
-                    <input type="text" id="projectName" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="startDate">Data de Início</label>
-                        <input type="date" id="startDate" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="endDate">Data de Término</label>
-                        <input type="date" id="endDate" required>
-                    </div>
-                </div>
-                
-                <div class="tasks-section">
-                    <div class="section-header">
-                        <h3>Etapas do Projeto</h3>
-                        <button type="button" class="btn btn-secondary" id="addTaskBtn">
-                            <i class="fas fa-plus"></i>
-                            Adicionar Etapa
-                        </button>
-                    </div>
-                    <div id="tasksList"></div>
-                </div>
-                
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" id="cancelBtn">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">Salvar Projeto</button>
-                </div>
-            </form>
+    <div class="tabs">
+      <button class="tab active" data-tab="projetos">Projetos</button>
+      <button class="tab" data-tab="planejamento">Planejamento</button>
+      <button class="tab" data-tab="analitica">Analítica</button>
+    </div>
+
+    <!-- PROJETOS -->
+    <section id="projetos" class="panel">
+      <div class="grid cols-2">
+        <div>
+          <h3>Projetos</h3>
+          <table id="projectsTable">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Projeto</th>
+                <th>Início</th>
+                <th>Prev. Término</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
         </div>
-    </div>
+        <div>
+          <h3>Gantt (visão simples)</h3>
+          <div class="gantt" id="gantt"></div>
+        </div>
+      </div>
+    </section>
 
-    <!-- Libraries -->
-    <script src="lib/xlsx.full.min.js"></script>
-    <script src="lib/frappe-gantt.min.js"></script>
-    <script src="lib/chart.min.js"></script>
-    
-    <!-- Application Scripts -->
-    <script src="js/utils.js"></script>
-    <script src="js/projects.js"></script>
-    <script src="js/gantt-simple.js"></script>
-    <script src="js/weekly.js"></script>
-    <script src="js/analytics.js"></script>
-    <script src="js/excel.js"></script>
-    <script src="js/app.js"></script>
+    <!-- PLANEJAMENTO -->
+    <section id="planejamento" class="panel" style="display:none">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px">
+        <div class="badge" id="weekLabel">Semana</div>
+        <button class="btn" id="prevWeek">◀︎</button>
+        <button class="btn" id="nextWeek">▶︎</button>
+        <div class="right"></div>
+      </div>
+      <div class="grid cols-2">
+        <div>
+          <div class="lane-title backlog">Etapas Pendentes</div>
+          <div id="backlog"></div>
+        </div>
+        <div>
+          <h3>Matriz de Eisenhower (semana)</h3>
+          <div class="matrix" id="matrix">
+            <!-- Importante/URGENTE etc. serão criados via JS (2x2 x 7 dias) -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANALÍTICA -->
+    <section id="analitica" class="panel" style="display:none">
+      <h2 style="margin:0 0 4px 0">Analytics & Insights</h2>
+      <p style="margin-top:0; color:var(--sub)">Acompanhe sua produtividade e padrões</p>
+      <div class="kpis">
+        <div class="card"><div class="stat-title">Tarefas Totais</div><div class="stat-value" id="kpiTotal">0</div><div class="stat-title">tarefas criadas</div></div>
+        <div class="card"><div class="stat-title">Concluídas</div><div class="stat-value" id="kpiDone">0</div><div class="stat-title">tarefas finalizadas</div></div>
+        <div class="card"><div class="stat-title">Taxa de Conclusão</div><div class="stat-value" id="kpiRate">0%</div><div class="stat-title">de produtividade</div></div>
+      </div>
+      <div class="grid cols-2">
+        <div class="card">
+          <h3 style="margin-top:0">Distribuição por Prioridade</h3>
+          <canvas id="chartPrioridade"></canvas>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Distribuição Semanal</h3>
+          <canvas id="chartSemanal"></canvas>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">Copyright © 2025 ConsultyD. Todos os direitos reservados.</footer>
+
+  <!-- MODAL PROJETO -->
+  <div class="modal" id="projectModal">
+    <div class="dialog">
+      <div class="header">
+        <h3 id="modalTitle">Projeto</h3>
+        <button class="btn close" onclick="closeModal()">✕</button>
+      </div>
+      <div class="grid cols-2">
+        <div class="field">
+          <label>Nome do Projeto</label>
+          <input id="inpProjNome" />
+        </div>
+        <div class="grid cols-2">
+          <div class="field"><label>Data Início</label><input type="date" id="inpProjInicio"></div>
+          <div class="field"><label>Prev. Término</label><input type="date" id="inpProjFim"></div>
+        </div>
+        <div class="field">
+          <label>Status do Projeto</label>
+          <select id="inpProjStatus">
+            <option>Aguardando análise</option>
+            <option>Em andamento</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+      </div>
+      <hr style="border:none; border-top:1px solid var(--muted); margin:14px 0"/>
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px">
+        <h3 style="margin:0">Etapas</h3>
+        <button class="btn" id="addStageBtn">+ Etapa</button>
+      </div>
+      <table id="stagesTable">
+        <thead>
+          <tr>
+            <th>Etapa</th><th>Responsável</th><th>Descrição</th>
+            <th>Início Prev.</th><th>Fim Prev.</th><th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="actions" style="justify-content:flex-end; margin-top:12px; flex-wrap:wrap">
+        <button class="btn" id="deleteProjectBtn" type="button">🗑️ Excluir projeto</button>
+        <button class="btn accent" onclick="saveProject()" type="button">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // ===================== Estado & Util =====================
+  const $ = (sel, ctx=document) => ctx.querySelector(sel);
+  const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+  const storeKey = 'projmgr.v1';
+  let state = JSON.parse(localStorage.getItem(storeKey) || '{"projects":[],"planner":{}}');
+  let currentProjectId = null;
+  const uuid = () => Math.random().toString(36).slice(2,9);
+
+  const STATUSES = ['Aguardando análise','Em andamento','Concluído'];
+
+  function persist(){localStorage.setItem(storeKey, JSON.stringify(state)); chartsBuilt=false; renderAll();}
+
+  function fmt(d){return d?dayjs(d).format('YYYY-MM-DD'):''}
+  function inDays(a,b){return dayjs(b).diff(dayjs(a), 'day')}
+
+  // ===================== Tema =====================
+  const body = document.getElementById('body');
+  $('#themeBtn').onclick = () => {
+    body.classList.toggle('light');
+    $('#themeBtn').textContent = body.classList.contains('light')? '🌙 Escuro':'☀️ Claro';
+  }
+
+  // ===================== Tabs =====================
+  $$('.tab').forEach(t=>t.addEventListener('click', ()=>{
+    $$('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    ['projetos','planejamento','analitica'].forEach(id=>$('#'+id).style.display='none');
+    $('#'+t.dataset.tab).style.display='block';
+    if(t.dataset.tab==='analitica') buildCharts();
+  }));
+
+  // ===================== Projetos: tabela + modal =====================
+  function renderProjectsTable(){
+    const tbody = $('#projectsTable tbody');
+    tbody.innerHTML = '';
+    state.projects.forEach(p=>{
+      const tr = document.createElement('tr');
+      const statusClass = 'status-'+(p.status?.split(' ')[0]||'Aguardando');
+      tr.innerHTML = `
+        <td>${p.id}</td>
+        <td><a href="#" data-id="${p.id}" class="lnk-proj">${p.name||'-'}</a></td>
+        <td>${p.start?fmt(p.start):'-'}</td>
+        <td>${p.end?fmt(p.end):'-'}</td>
+        <td><span class="badge ${statusClass}">${p.status||'Aguardando análise'}</span></td>
+        <td style="text-align:right"><button class="btn" data-del="${p.id}">🗑</button></td>`;
+      tbody.appendChild(tr);
+    });
+
+    $$('.lnk-proj', tbody).forEach(a=>a.onclick=(e)=>{e.preventDefault(); openProject(a.dataset.id)});
+    $$('button[data-del]', tbody).forEach(b=>b.onclick=()=>{ if(confirm('Excluir projeto?')){ state.projects = state.projects.filter(p=>p.id!==b.dataset.del); persist(); }});
+  }
+
+  function openProject(id){
+    const p = state.projects.find(x=>x.id===id);
+    if(!p) return;
+    currentProjectId = id;
+    $('#modalTitle').textContent = `Projeto: ${p.name}`;
+    $('#inpProjNome').value = p.name || '';
+    $('#inpProjInicio').value = fmt(p.start);
+    $('#inpProjFim').value = fmt(p.end);
+    $('#inpProjStatus').value = p.status || 'Aguardando análise';
+    renderStagesTable(p);
+    $('#projectModal').classList.add('open');
+    const delBtn = $('#deleteProjectBtn');
+    if (delBtn) delBtn.onclick = removeProject;
+  }
+  function closeModal(){ $('#projectModal').classList.remove('open') }
+
+  $('#newProjectBtn').onclick = ()=>{
+    const p = {id: uuid(), name:'Novo Projeto', start:null, end:null, status:'Aguardando análise', stages:[]};
+    state.projects.push(p); persist(); openProject(p.id);
+  }
+
+  function renderStagesTable(p){
+    const tb = $('#stagesTable tbody'); tb.innerHTML='';
+    p.stages.forEach(s=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input value="${s.name||''}" data-f="name" data-id="${s.id}"></td>
+        <td><input value="${s.owner||''}" data-f="owner" data-id="${s.id}"></td>
+        <td><input value="${s.desc||''}" data-f="desc" data-id="${s.id}"></td>
+        <td><input type="date" value="${fmt(s.planStart)}" data-f="planStart" data-id="${s.id}"></td>
+        <td><input type="date" value="${fmt(s.planEnd)}" data-f="planEnd" data-id="${s.id}"></td>
+        <td>
+          <select data-f="status" data-id="${s.id}">
+            ${STATUSES.map(x=>`<option ${s.status===x?'selected':''}>${x}</option>`).join('')}
+          </select>
+        </td>
+        <td style="text-align:right"><button class="btn" data-rm="${s.id}">🗑</button></td>`;
+      tb.appendChild(tr);
+    });
+    // listeners
+    $$('[data-f]', tb).forEach(inp=>inp.onchange=()=>{
+      const s = p.stages.find(z=>z.id===inp.dataset.id);
+      const f = inp.dataset.f;
+      s[f] = (inp.type==='date')? (inp.value||null) : inp.value;
+      // datas de sistema
+      if(f==='status'){
+        if(inp.value==='Em andamento' && !s.sysStart){ s.sysStart = dayjs().toISOString(); }
+        if(inp.value==='Concluído' && !s.sysEnd){ s.sysEnd = dayjs().toISOString(); }
+      }
+    });
+    $$('button[data-rm]', tb).forEach(b=>b.onclick=()=>{ p.stages = p.stages.filter(x=>x.id!==b.dataset.rm); renderStagesTable(p) });
+
+    $('#addStageBtn').onclick = ()=>{ p.stages.push({id:uuid(), name:'Nova etapa', owner:'', desc:'', planStart:null, planEnd:null, status:'Aguardando análise'}); renderStagesTable(p) };
+  }
+
+  function saveProject(){
+    const p = state.projects.find(x=>x.id===currentProjectId);
+    p.name = $('#inpProjNome').value.trim();
+    p.start = $('#inpProjInicio').value||null;
+    p.end   = $('#inpProjFim').value||null;
+    const prev = p.status; p.status = $('#inpProjStatus').value;
+    if(p.status==='Em andamento' && !p.sysStart) p.sysStart = dayjs().toISOString();
+    if(p.status==='Concluído' && !p.sysEnd) p.sysEnd = dayjs().toISOString();
+    persist(); closeModal();
+  }
+  function removeProject(){
+    try{
+      const id = currentProjectId;
+      if(!id){ alert('Projeto não selecionado.'); return; }
+      const proj = state.projects.find(x=>x.id===id);
+      if(!proj){ closeModal(); return; }
+      if(!confirm('Tem certeza que deseja excluir este projeto?')) return;
+      // Remove entradas do planejamento que pertencem a este projeto
+      Object.keys(state.planner).forEach(k=>{ if(k.startsWith(id+':')) delete state.planner[k]; });
+      // Remove o projeto
+      state.projects = state.projects.filter(p=>p.id!==id);
+      currentProjectId = null;
+      closeModal();
+      persist();
+    }catch(err){ console.error(err); alert('Falha ao excluir projeto: '+ (err?.message||err)); }
+  }
+
+  // ===================== Gantt simples =====================
+  function renderGantt(){
+    const host = $('#gantt'); host.innerHTML='';
+    // Coleta todas as etapas com datas válidas
+    const stages = state.projects.flatMap(p=> (p.stages||[]).map(s=>({p, s})) ).filter(x=>x.s.planStart && x.s.planEnd);
+    // Se não houver datas, apenas mostra aviso
+    if(stages.length===0){ host.innerHTML = '<div style="padding:12px;color:var(--sub)">Adicione etapas com datas previstas para ver o Gantt.</div>'; return; }
+
+    // Define janela do gráfico (do menor início ao maior fim, com folga)
+    const sMin = stages.reduce((m,x)=> dayjs(x.s.planStart).isBefore(m)? dayjs(x.s.planStart): m, dayjs(stages[0].s.planStart));
+    const sMax = stages.reduce((m,x)=> dayjs(x.s.planEnd).isAfter(m)? dayjs(x.s.planEnd): m, dayjs(stages[0].s.planEnd));
+    const chartStart = sMin.subtract(2,'day');
+    const chartEnd   = sMax.add(2,'day');
+    const totalDays  = chartEnd.diff(chartStart,'day') + 1;
+
+    // Cabeçalho
+    const header = document.createElement('div'); header.className='gantt-header';
+    const leftH = document.createElement('div'); leftH.style.padding='10px 12px'; leftH.textContent='Projeto/Etapa';
+    const rightH = document.createElement('div'); rightH.className='gantt-timeline'; rightH.style.padding='22px 0 10px 0';
+    const gridH = document.createElement('div'); gridH.className='gantt-grid';
+    for(let i=0;i<totalDays;i++){
+      const d = document.createElement('div');
+      const day = chartStart.add(i,'day').day();
+      if(day===0||day===6) d.style.background='rgba(255,255,255,.03)';
+      gridH.appendChild(d);
+    }
+    const labels = document.createElement('div'); labels.className='gantt-labels';
+    for(let i=0;i<totalDays;i++){
+      const d = chartStart.add(i,'day');
+      const show = d.date()===1 || d.day()===1; // 1º do mês ou segunda
+      const lab = document.createElement('div'); lab.textContent = show? d.format('DD/MM') : '';
+      labels.appendChild(lab);
+    }
+    rightH.appendChild(gridH); rightH.appendChild(labels); header.appendChild(leftH); header.appendChild(rightH); host.appendChild(header);
+
+    // largura responsiva das colunas (dias)
+    const timelineWidth = rightH.clientWidth || rightH.getBoundingClientRect().width;
+    const cell = Math.max(24, Math.min(72, Math.floor(timelineWidth / totalDays)));
+    rightH.style.setProperty('--cell', cell + 'px');
+
+    // Linhas por projeto
+    state.projects.forEach(p=>{
+      const row = document.createElement('div'); row.className='gantt-row';
+      const l = document.createElement('div'); l.style.padding='8px 12px'; l.innerHTML = `<strong>${p.name}</strong>`;
+      const r = document.createElement('div'); r.className='gantt-timeline'; r.style.height = Math.max(40, (p.stages?.length||1)*30)+'px'; r.style.setProperty('--cell', cell + 'px');
+      // grid de fundo
+      const grid = gridH.cloneNode(true); r.appendChild(grid);
+
+      (p.stages||[]).forEach((s,idx)=>{
+        if(!s.planStart||!s.planEnd) return;
+        const sDate = dayjs(s.planStart), eDate = dayjs(s.planEnd);
+        // recorte dentro da janela
+        const st = sDate.isBefore(chartStart)? chartStart : sDate;
+        const en = eDate.isAfter(chartEnd)? chartEnd : eDate;
+        const left = Math.max(0, st.diff(chartStart,'day'));
+        const widthDays = Math.max(1, en.diff(st,'day') + 1);
+
+        const bar = document.createElement('div'); bar.className='bar';
+        bar.style.left = `calc(${left} * var(--cell))`;
+        bar.style.top = (6 + idx*30) + 'px';
+        bar.style.width = `calc(${widthDays} * var(--cell))`;
+        bar.textContent = s.name||'Etapa';
+        if(s.status==='Concluído'){ bar.style.background='var(--ok)'}
+        else if(s.status==='Em andamento'){ bar.style.background='var(--info)'}
+        bar.title = `${s.name||'Etapa'}
+${dayjs(s.planStart).format('DD/MM/YYYY')} → ${dayjs(s.planEnd).format('DD/MM/YYYY')}`;
+        bar.onclick = ()=> openProject(p.id);
+        r.appendChild(bar);
+      });
+
+      row.appendChild(l); row.appendChild(r); host.appendChild(row);
+    });
+  }
+
+  // ===================== Planejamento (drag & drop) =====================
+  const QUADS = [
+    {key:'Q1', label:'Urgente & Importante<br><small>Faça primeiro (Crises)</small>', color:'q1'},
+    {key:'Q2', label:'Urgente & Não Importante<br><small>Delegue (Interrupções)</small>', color:'q2'},
+    {key:'Q3', label:'Não Urgente & Importante<br><small>Agende (Metas)</small>', color:'q3'},
+    {key:'Q4', label:'Não Urgente & Não Importante<br><small>Elimine (Distrações)</small>', color:'q4'},
+  ];
+  let weekOffset = 0; // 0 = semana atual
+  const dayNames = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+  function weekStart(){ 
+    // base ISO (segunda) e ajusta para domingo
+    return dayjs().add(weekOffset,'week').startOf('isoWeek').subtract(1,'day');
+  }
+  function currentWeekId(){ return weekStart().format('YYYY-MM-DD'); }
+
+  function renderPlanner(){
+    $('#weekLabel').textContent = `Semana ${weekStart().format('DD/MM')} - ${weekStart().add(6,'day').format('DD/MM')}`;
+    const backlog = $('#backlog'); backlog.innerHTML='';
+    // permitir soltar aqui para remover do planejamento
+    backlog.ondragover = (ev)=>ev.preventDefault();
+    backlog.ondrop = (ev)=>{ ev.preventDefault(); const id = ev.dataTransfer.getData('text'); if(state.planner[id]){ delete state.planner[id]; persist(); } };
+    // etapas pendentes e NÃO alocadas nesta semana
+    state.projects.forEach(p=>p.stages?.forEach(s=>{
+      if(s.status==='Concluído') return; const id=`${p.id}:${s.id}`;
+      const planned = state.planner[id] && state.planner[id].week===currentWeekId();
+      if(!planned){ backlog.appendChild(taskEl(p,s)); }
+    }));
+
+    const matrix = $('#matrix'); matrix.innerHTML='';
+    QUADS.forEach(q=>{
+      const lane = document.createElement('div'); lane.className='lane';
+      const title = document.createElement('div'); title.className=`lane-title ${q.color}`; title.innerHTML=q.label; lane.appendChild(title);
+      const week = document.createElement('div'); week.className='week';
+      for(let d=0; d<7; d++){
+        const box = document.createElement('div'); box.className='daybox'; box.dataset.slot=`${q.key}-${d}`; box.setAttribute('data-color', q.color);
+        const head = document.createElement('div'); head.className='day-head'; head.textContent=dayNames[d]; box.appendChild(head);
+        box.ondragover = (ev)=>ev.preventDefault();
+        box.ondrop = (ev)=>{ ev.preventDefault(); const id = ev.dataTransfer.getData('text'); state.planner[id] = {week: currentWeekId(), slot: box.dataset.slot}; persist(); };
+        week.appendChild(box);
+      }
+      lane.appendChild(week); matrix.appendChild(lane);
+    });
+
+    // preencher itens planejados
+    for(const [id,info] of Object.entries(state.planner)){
+      if(info.week !== currentWeekId()) continue;
+      const [pid,sid] = id.split(':');
+      const p = state.projects.find(x=>x.id===pid); if(!p) continue;
+      const s = p.stages.find(x=>x.id===sid); if(!s||s.status==='Concluído') continue;
+      const bucket = document.querySelector(`[data-slot="${info.slot}"]`); if(bucket) bucket.appendChild(taskEl(p,s));
+    }
+  }
+
+  function taskEl(p,s){
+    const el = document.createElement('div'); el.className='task'; el.draggable=true; el.id=`${p.id}:${s.id}`;
+    el.innerHTML = `<strong>${s.name}</strong><br><small>${p.name} • Resp.: ${s.owner||'-'}</small>`;
+    // botão para voltar ao backlog
+    const un = document.createElement('button'); un.className='unplan'; un.textContent='↩ Pendentes'; un.title='Voltar para Etapas Pendentes';
+    un.onclick = (ev)=>{ ev.stopPropagation(); const id = `${p.id}:${s.id}`; if(state.planner[id]){ delete state.planner[id]; persist(); } };
+    el.appendChild(un);
+    el.ondragstart = (ev)=>{ el.classList.add('dragging'); ev.dataTransfer.setData('text', el.id) };
+    el.ondragend = ()=> el.classList.remove('dragging');
+    el.onclick = ()=>{ openProject(p.id); };
+    return el;
+  }
+  $('#prevWeek').onclick = ()=>{weekOffset--; renderPlanner()};
+  $('#nextWeek').onclick = ()=>{weekOffset++; renderPlanner()};
+
+  // ===================== Analytics =====================
+  let chartsBuilt=false; let ch1=null, ch2=null;
+  function buildCharts(){
+    // KPIs
+    const allStages = state.projects.flatMap(p=>p.stages||[]);
+    const total = allStages.length; const done = allStages.filter(s=>s.status==='Concluído').length;
+    const rate = total? Math.round((done/total)*100):0;
+    const elT=$('#kpiTotal'), elD=$('#kpiDone'), elR=$('#kpiRate');
+    if(elT) elT.textContent = total; if(elD) elD.textContent = done; if(elR) elR.textContent = rate+'%';
+
+    // Dados por prioridade (semana atual)
+    const prCounts = {Q1:0,Q2:0,Q3:0,Q4:0};
+    for(const [id,info] of Object.entries(state.planner)){
+      if(info.week !== currentWeekId()) continue;
+      const [pid,sid] = id.split(':');
+      const p = state.projects.find(x=>x.id===pid); if(!p) continue;
+      const s = p.stages.find(x=>x.id===sid); if(!s || s.status==='Concluído') continue;
+      const quad = info.slot.split('-')[0]; if(prCounts[quad]!==undefined) prCounts[quad]++;
+    }
+    const labelsP = ['Urgente & Importante','Urgente & Não Importante','Não Urgente & Importante','Não Urgente & Não Importante'];
+    const dataP = [prCounts.Q1,prCounts.Q2,prCounts.Q3,prCounts.Q4];
+
+    const baseOpts = { responsive:true, maintainAspectRatio:false, plugins:{ legend:{position:'top'}, title:{display:false} } };
+
+    if(window.ch1) ch1.destroy();
+    if($('#chartPrioridade')) ch1 = new Chart($('#chartPrioridade'), { type:'doughnut', data:{ labels:labelsP, datasets:[{ data:dataP, backgroundColor:['#e11d48','#f97316','#16a34a','#6b7280'] }] }, options:{...baseOpts, cutout:'65%'} });
+
+    // Distribuição semanal por dia
+    const daily = Array(7).fill(0);
+    for(const [id,info] of Object.entries(state.planner)){
+      if(info.week !== currentWeekId()) continue;
+      const [pid,sid] = id.split(':');
+      const p = state.projects.find(x=>x.id===pid); if(!p) continue;
+      const s = p.stages.find(x=>x.id===sid); if(!s || s.status==='Concluído') continue;
+      const dayIndex = parseInt(info.slot.split('-')[1], 10); daily[dayIndex] += 1;
+    }
+    if(window.ch2) ch2.destroy();
+    if($('#chartSemanal')) ch2 = new Chart($('#chartSemanal'), { type:'bar', data:{ labels:dayNames, datasets:[{ label:'Etapas', data:daily }] }, options:{...baseOpts, scales:{ y:{ beginAtZero:true, ticks:{ precision:0 } } } } });
+    chartsBuilt=true;
+  }
+
+  // ===================== Importar / Exportar Excel =====================
+  /* Formato esperado de colunas (case-insensitive):
+     id_projeto, nome_projeto, data_inicio, data_prevista_termino,
+     nome_etapa, responsavel_etapa, descricao_etapa,
+     data_inicio_previsto, data_termino_previsto, status,
+     dataregistro_inicio_sistema, dataregistro_fim_sistema
+  */
+  function headersMap(h){
+    const n = h.map(x=>x.toString().trim().toLowerCase());
+    const idx = (k)=> n.indexOf(k);
+    return { id:idx('id_projeto'), name:idx('nome_projeto'), start:idx('data_inicio'), end:idx('data_prevista_termino'),
+      sname:idx('nome_etapa'), owner:idx('responsavel_etapa'), desc:idx('descricao_etapa'), ps:idx('data_inicio_previsto'), pe:idx('data_termino_previsto'), st:idx('status'), ss:idx('dataregistro_inicio_sistema'), se:idx('dataregistro_fim_sistema') };
+  }
+
+  $('#excelInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0]; if(!file) return;
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
+    const map = headersMap(rows[0]);
+    const projects = {};
+    rows.slice(1).forEach(r=>{
+      const pid = (r[map.id]||uuid()).toString();
+      if(!projects[pid]) projects[pid] = {id:pid, name:r[map.name]||'', start:r[map.start]||null, end:r[map.end]||null, status:'Aguardando análise', stages:[]};
+      projects[pid].stages.push({id:uuid(), name:r[map.sname]||'', owner:r[map.owner]||'', desc:r[map.desc]||'', planStart:r[map.ps]||null, planEnd:r[map.pe]||null, status:r[map.st]||'Aguardando análise', sysStart:r[map.ss]||null, sysEnd:r[map.se]||null});
+    });
+    state.projects = Object.values(projects); persist(); e.target.value='';
+  });
+
+  $('#exportBtn').onclick = ()=>{
+    try{
+      if(typeof XLSX==='undefined'){ alert('Erro: biblioteca do Excel não carregada. Verifique sua internet ou o bloqueio do navegador.'); return; }
+      const rows = [[
+        'id_projeto','nome_projeto','data_inicio','data_prevista_termino','nome_etapa','responsavel_etapa','descricao_etapa','data_inicio_previsto','data_termino_previsto','status','dataregistro_inicio_sistema','dataregistro_fim_sistema'
+      ]];
+      if(state.projects.length===0){ rows.push(['','','','','','','','','','','','']); }
+      state.projects.forEach(p=>{
+        if(!p.stages || p.stages.length===0){ rows.push([p.id,p.name,p.start,p.end,'','','','','',p.status,p.sysStart||'',p.sysEnd||'']); return; }
+        p.stages.forEach(s=>{
+          rows.push([p.id,p.name,p.start,p.end,s.name,s.owner,s.desc,s.planStart,s.planEnd,s.status,s.sysStart||'',s.sysEnd||'']);
+        })
+      });
+      const ws = XLSX.utils.aoa_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'projetos');
+      XLSX.writeFile(wb, 'projetos.xlsx');
+    }catch(err){ console.error(err); alert('Falha ao exportar: '+ (err?.message||err)); }
+  }
+
+  // ===================== Inicializar =====================
+  function renderAll(){ renderProjectsTable(); renderGantt(); renderPlanner(); }
+  renderAll();
+  window.addEventListener('resize', renderGantt);
+
+  </script>
 </body>
 </html>
